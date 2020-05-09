@@ -2,7 +2,8 @@ import sys
 import socket
 import select
 import time
-
+import traceback
+import logging
 
 def receive_file(file_name):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -64,5 +65,5 @@ try:
             print("File not found!")
     else:
         pass  # Exception
-except:
-    print("Switches not imported properly!\nDetail:\n" + str(sys.exc_info()[0]))
+except Exception as e:
+    logging.error(traceback.format_exc())
