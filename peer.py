@@ -7,48 +7,56 @@ import logging
 import hashlib
 
 def receive_file(file_name):
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.bind((ip, port))
-    print("Waiting for {filename}".format(filename = file_name))
-
-    while True:
-        data, address = s.recvfrom(buffer)
-        if data:
-            file_name = data.strip()
-
-        file = open(file_name, 'wb')
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.bind((ip, port))
+        print("Waiting for {filename}".format(filename = file_name))
 
         while True:
-            ready = select.select([s], [], [], 4)
-            if ready[0]:
-                data, address = s.recvfrom(buffer)
-                file.write(data)
-            else:
-                file.close()
-                break
-        fhsh = open(file_name, 'rb')
-        return hashlib.md5(fhsh.read()).hexdigest()
+            data, address = s.recvfrom(buffer)
+            if data:
+                file_name = data.strip()
+
+            file = open(file_name, 'wb')
+
+            while True:
+                ready = select.select([s], [], [], 4)
+                if ready[0]:
+                    data, address = s.recvfrom(buffer)
+                    file.write(data)
+                else:
+                    file.close()
+                    break
+            fhsh = open(file_name, 'rb')
+            return hashlib.md5(fhsh.read()).hexdigest()
+    except:
+        print(str(sys.exc_info()[0]))
+        return -1
 
 
 def send_file(address, file_name):
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.sendto(bytes(file_name, 'utf-8'), (ip, port))
-    print("Sending {filename} as Torrent Seeder".format(filename = file_name))
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.sendto(bytes(file_name, 'utf-8'), (ip, port))
+        print("Sending {filename} as Torrent Seeder".format(filename = file_name))
 
-    file = open(address, "rb")
+        file = open(address, "rb")
 
-    data = file.read(buffer)
-    while data:
-        if s.sendto(data, (ip, port)) > 0:
-            data = file.read(buffer)
-            time.sleep(0.04)
+        data = file.read(buffer)
+        while data:
+            if s.sendto(data, (ip, port)) > 0:
+                data = file.read(buffer)
+                time.sleep(0.04)
 
-    s.close()
-    file.close()
-    file = open(address, "rb")
-    fhsh = hashlib.md5(file.read()).hexdigest()
-    file.close()
-    return fhsh
+        s.close()
+        file.close()
+        file = open(address, "rb")
+        fhsh = hashlib.md5(file.read()).hexdigest()
+        file.close()
+        return fhsh
+    except:
+        print(str(sys.exc_info()[0]))
+        return -1
 
 
 buffer = 4096
@@ -71,6 +79,6 @@ try:
         else:
             print("File not found!")
     else:
-        pass  # Exception
+        print("Not a parsable command!")
 except Exception as e:
     logging.error(traceback.format_exc())
