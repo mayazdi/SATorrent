@@ -4,6 +4,7 @@ import select
 import time
 import traceback
 import logging
+import hashlib
 
 def receive_file(file_name):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -25,7 +26,8 @@ def receive_file(file_name):
             else:
                 file.close()
                 break
-        return 0
+        fhsh = open(file_name, 'rb')
+        return hashlib.md5(fhsh.read()).hexdigest()
 
 
 def send_file(address, file_name):
@@ -43,10 +45,13 @@ def send_file(address, file_name):
 
     s.close()
     file.close()
-    return 0
+    file = open(address, "rb")
+    fhsh = hashlib.md5(file.read()).hexdigest()
+    file.close()
+    return fhsh
 
 
-buffer = 128
+buffer = 4096
 ip = '127.0.0.1'
 port = 8080
 try:
@@ -54,6 +59,7 @@ try:
         f = receive_file(sys.argv[2])  # Receive file with the name requested
         if f != -1:
             print("Fetching {name} Finished!".format(name=str(sys.argv[2])))
+            print("Hash: " + f)
         else:
             print("File not fetched!")
     elif sys.argv[1] == "-serve":
@@ -61,6 +67,7 @@ try:
                        sys.argv[sys.argv.index("-name") + 1])  # Send file with the name requested
         if ff != -1:
             print("File Sent!")
+            print("Hash: " + ff)
         else:
             print("File not found!")
     else:
