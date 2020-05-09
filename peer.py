@@ -7,7 +7,7 @@ import time
 def receive_file(file_name):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.bind((ip, port))
-    print("Waiting for %s" % file_name)
+    print("Waiting for {filename}".format(filename = file_name))
 
     while True:
         data, address = s.recvfrom(buffer)
@@ -30,7 +30,7 @@ def receive_file(file_name):
 def send_file(address, file_name):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.sendto(bytes(file_name, 'utf-8'), (ip, port))
-    print("Sending %s to Torrent" % file_name)
+    print("Sending {filename} as Torrent Seeder".format(filename = file_name))
 
     file = open(address, "rb")
 
@@ -52,7 +52,7 @@ try:
     if sys.argv[1] == "-receive":
         f = receive_file(sys.argv[2])  # Receive file with the name requested
         if f != -1:
-            print("Fetching %s Finished!" % str(sys.argv[2]))
+            print("Fetching {name} Finished!".format(name=str(sys.argv[2])))
         else:
             print("File not fetched!")
     elif sys.argv[1] == "-serve":
