@@ -5,60 +5,59 @@ import time
 
 
 def receive_file(file_name):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(('127.0.0.1', 8080))
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.bind((ip, port))
+    print("Waiting for %s" % file_name)
 
     while True:
-        data, address = sock.recvfrom(1024)
+        data, address = s.recvfrom(buffer)
         if data:
-            print("File name:", data)
             file_name = data.strip()
 
         file = open(file_name, 'wb')
 
         while True:
-            ready = select.select([sock], [], [], 4)
+            ready = select.select([s], [], [], 4)
             if ready[0]:
-                data, address = sock.recvfrom(1024)
+                data, address = s.recvfrom(buffer)
                 file.write(data)
             else:
-                print("%s Finish!" % file_name)
                 file.close()
                 break
         return 0
 
 
 def send_file(address, file_name):
-    ip = "127.0.0.1"
-    port = 8080
-    buf = 1024
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.sendto(bytes(file_name, 'utf-8'), (ip, port))
-    print("Sending %s ..." % file_name)
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.sendto(bytes(file_name, 'utf-8'), (ip, port))
+    print("Sending %s to Torrent" % file_name)
 
     file = open(address, "rb")
 
-    data = file.read(buf)
+    data = file.read(buffer)
     while data:
-        if sock.sendto(data, (ip, port)):
-            data = file.read(buf)
+        if s.sendto(data, (ip, port)) > 0:
+            data = file.read(buffer)
             time.sleep(0.04)
 
-    sock.close()
+    s.close()
     file.close()
     return 0
 
 
+buffer = 128
+ip = '127.0.0.1'
+port = 8080
 try:
-    if sys.argv[2] == "-receive":
+    if sys.argv[1] == "-receive":
         f = receive_file(sys.argv[2])  # Receive file with the name requested
         if f != -1:
-            print("File saved!")
+            print("Fetching %s Finished!" % str(sys.argv[2]))
         else:
             print("File not fetched!")
-    elif sys.argv[2] == "-serve":
+    elif sys.argv[1] == "-serve":
         ff = send_file(sys.argv[sys.argv.index("-path") + 1],
-                       sys.argv[sys.argv.index("-name") + 1])  # Address to save fetched file
+                       sys.argv[sys.argv.index("-name") + 1])  # Send file with the name requested
         if ff != -1:
             print("File Sent!")
         else:
