@@ -1,81 +1,113 @@
 import sys
 import socket
-import select
-import time
 import traceback
 import logging
-import hashlib
 
-def receive_file(file_name):
+
+def receive_file(file_name, sc):
+    fli = []
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.bind((ip, port))
-        print("Waiting for {filename}".format(filename = file_name))
+        file = open('hosts', 'r')
+        line = file.readline()
+        while line:
+            dic = eval(line)
+            ip = dic['ip']
+            port = int(dic['port'])
+            sc.sendto(file_name.encode(), (ip, port))
+            print(ip)
+            print(port)
+            line = file.readline()
+        print("Waiting for {filename}".format(filename=file_name))
+        sc.settimeout(8.0)
+
+        x = sc.recvfrom(2048)
+        data = x[0]
+        fli.append((data[0], data[1:]))
+        # print('receiver ip: ' + sc.getsockname()[0] + ' receiver port: ' + str(sc.getsockname()[1]))
 
         while True:
-            data, address = s.recvfrom(buffer)
-            if data:
-                file_name = data.strip()
-
-            file = open(file_name, 'wb')
-
-            while True:
-                ready = select.select([s], [], [], 4)
-                if ready[0]:
-                    data, address = s.recvfrom(buffer)
-                    file.write(data)
-                else:
-                    file.close()
-                    break
-            fhsh = open(file_name, 'rb')
-            return hashlib.md5(fhsh.read()).hexdigest()
+            data, address = sc.recvfrom(2048)
+            if data.decode() != '\0':
+                fli.append((data[0], data[1:]))
+                print(fli)
+            else:
+                break
+        print(file_name)
+        # Write into file
+        file = open(file_name, 'wb')
+        i = 0
+        for d in sorted(fli, key=lambda x: x[0]):
+            if d[0] == i:
+                file.write(d[1])
+                i += 1
+        sc.close()
+        file.close()
+        return 0
+    except OSError:
+        logging.error(traceback.format_exc())
+        return -1
     except:
-        print(str(sys.exc_info()[0]))
+        print(str(sys.exc_info()))
         return -1
 
 
-def send_file(address, file_name):
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.sendto(bytes(file_name, 'utf-8'), (ip, port))
-        print("Sending {filename} as Torrent Seeder".format(filename = file_name))
+def send_file(address, file_name, sc):
+    file = open('hosts', 'w')
+    dic = {'ip': sc.getsockname()[0], 'port': sc.getsockname()[1]}
+    print(str(dic))
+    file.write(str(dic) + "\n")
+    file.close()
 
-        file = open(address, "rb")
+    while True:
+        try:
+            print('waiting for request...')
+            x = sc.recvfrom(2048)
+            data = x[0].decode()
+            addr = x[1]
+            print('request received')
 
-        data = file.read(buffer)
-        while data:
-            if s.sendto(data, (ip, port)) > 0:
+            if data == file_name:
+                file = open(address, "rb")
+                print("Sending {filename} as Torrent Seeder".format(filename=file_name))
+                i = 0
                 data = file.read(buffer)
-                time.sleep(0.04)
+                while data:
+                    # print('sender ip: ' + sc.getsockname()[0] + ' sender port: ' + str(sc.getsockname()[1]))
+                    # print('receiver ip: ' + addr[0] + ' receiver port: ' + str(addr[1]))
+                    if sc.sendto(i.to_bytes(1, 'little', signed=False) + data, addr) > 0:
+                        print(data)
+                        print(len((i.to_bytes(1, 'little', signed=False) + data)))
+                        data = file.read(buffer)
+                        i += 1
+                sc.sendto((bytes('\0', 'utf-8')), addr)
+                file.close()
+            else:
+                print('I don\'t serve request filename')
+        except TypeError:
+            logging.error(traceback.format_exc())
+        except FileNotFoundError:
+            return -1
+        except:
+            print(str(sys.exc_info()[0]))
 
-        s.close()
-        file.close()
-        file = open(address, "rb")
-        fhsh = hashlib.md5(file.read()).hexdigest()
-        file.close()
-        return fhsh
-    except:
-        print(str(sys.exc_info()[0]))
-        return -1
 
-
-buffer = 4096
+buffer = 128
 ip = '127.0.0.1'
-port = 8080
+sc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sc.bind((ip, 0))  # one available port
+
 try:
     if sys.argv[1] == "-receive":
-        f = receive_file(sys.argv[2])  # Receive file with the name requested
+        f = receive_file(sys.argv[2], sc)  # Receive file with the name requested
         if f != -1:
             print("Fetching {name} Finished!".format(name=str(sys.argv[2])))
-            print("Hash: " + f)
         else:
             print("File not fetched!")
     elif sys.argv[1] == "-serve":
         ff = send_file(sys.argv[sys.argv.index("-path") + 1],
-                       sys.argv[sys.argv.index("-name") + 1])  # Send file with the name requested
+                       sys.argv[sys.argv.index("-name") + 1], sc)  # Send file with the name requested
         if ff != -1:
-            print("File Sent!")
-            print("Hash: " + ff)
+            print("File {filename} Sent!".format(filename=str(sys.argv[sys.argv.index("-name") + 1])))
         else:
             print("File not found!")
     else:
