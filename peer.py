@@ -14,25 +14,25 @@ def receive_file(file_name, sc):
             ip = dic['ip']
             port = int(dic['port'])
             sc.sendto(file_name.encode(), (ip, port))
-            print(ip)
-            print(port)
+            print("ip: " + str(ip) + " port:" + str(port))
             line = file.readline()
         print("Waiting for {filename}".format(filename=file_name))
         sc.settimeout(8.0)
 
-        x = sc.recvfrom(2048)
-        data = x[0]
+        res = sc.recvfrom(2048)
+        data = res[0]
         fli.append((data[0], data[1:]))
         # print('receiver ip: ' + sc.getsockname()[0] + ' receiver port: ' + str(sc.getsockname()[1]))
 
         while True:
             data, address = sc.recvfrom(2048)
-            if data.decode() != '\0':
+            if data != b'\0':
                 fli.append((data[0], data[1:]))
                 print(fli)
             else:
                 break
-        print(file_name)
+        # print(file_name)
+
         # Write into file
         file = open(file_name, 'wb')
         i = 0
@@ -61,12 +61,10 @@ def send_file(address, file_name, sc):
     while True:
         try:
             print('waiting for request...')
-            x = sc.recvfrom(2048)
-            data = x[0].decode()
-            addr = x[1]
+            data, addr = sc.recvfrom(2048)
             print('request received')
 
-            if data == file_name:
+            if data.decode() == file_name:
                 file = open(address, "rb")
                 print("Sending {filename} as Torrent Seeder".format(filename=file_name))
                 i = 0
@@ -79,7 +77,7 @@ def send_file(address, file_name, sc):
                         print(len((i.to_bytes(1, 'little', signed=False) + data)))
                         data = file.read(buffer)
                         i += 1
-                sc.sendto((bytes('\0', 'utf-8')), addr)
+                sc.sendto(b'\0', addr)
                 file.close()
             else:
                 print('I don\'t serve request filename')
